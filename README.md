@@ -1,5 +1,5 @@
-Guestful :: Module :: JAX-RS Security Filters
-=============================================
+Guestful :: Module :: JAX-RS Cookie Auth
+========================================
 
 Add in your POM:
 

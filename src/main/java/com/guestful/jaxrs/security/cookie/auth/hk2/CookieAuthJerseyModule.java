@@ -15,9 +15,7 @@
  */
 package com.guestful.jaxrs.security.cookie.auth.hk2;
 
-import com.guestful.jaxrs.security.cookie.auth.CookieAuth;
-import com.guestful.jaxrs.security.cookie.auth.CookieAuthFeature;
-import com.guestful.jaxrs.security.cookie.auth.CookieSubject;
+import com.guestful.jaxrs.security.cookie.auth.*;
 import org.glassfish.hk2.api.Factory;
 import org.glassfish.hk2.api.InjectionResolver;
 import org.glassfish.hk2.api.ServiceLocator;
@@ -47,22 +45,27 @@ import java.util.List;
  */
 public class CookieAuthJerseyModule {
 
-    public static CookieAuthFeature install(Configurable<?> c) {
-        CookieAuthFeature cookieAuthFeature = new CookieAuthFeature();
+    public static CookieAuthRealmConfigs install(Configurable<?> c) {
+        CookieAuthRealmConfigs configs = new CookieAuthRealmConfigs();
+        c.register(new CookieAuthBinder(configs));
         c.register(CookieAuthValueFactoryProvider.class, ValueFactoryProvider.class);
-        c.register(new CookieAuthBinder());
-        c.register(cookieAuthFeature);
-        return cookieAuthFeature;
+        c.register(CookieAuthFeature.class);
+        return configs;
     }
 
     static class CookieAuthBinder extends AbstractBinder {
+        private final CookieAuthRealmConfigs configs;
+
+        public CookieAuthBinder(CookieAuthRealmConfigs configs) {
+            this.configs = configs;
+        }
+
         @Override
         protected void configure() {
+            bind(configs);
             bind(CookieAuthInjectionResolver.class)
                 .to(new TypeLiteral<InjectionResolver<CookieAuth>>() {
-                })
-                .in(Singleton.class);
-
+                }).in(Singleton.class);
         }
 
     }
@@ -75,10 +78,14 @@ public class CookieAuthJerseyModule {
 
     static final class CookieAuthValueFactoryProvider extends AbstractValueFactoryProvider {
 
+        private final CookieAuthRealmConfigs configs;
+
         @Inject
-        CookieAuthValueFactoryProvider(final MultivaluedParameterExtractorProvider mpep,
-                                              final ServiceLocator locator) {
+        CookieAuthValueFactoryProvider(MultivaluedParameterExtractorProvider mpep,
+                                       ServiceLocator locator,
+                                       CookieAuthRealmConfigs configs) {
             super(mpep, locator, Parameter.Source.ENTITY, Parameter.Source.UNKNOWN);
+            this.configs = configs;
         }
 
         @Override
@@ -92,25 +99,29 @@ public class CookieAuthJerseyModule {
             if (!CookieSubject.class.isAssignableFrom(parameter.getRawType())) return null;
             CookieAuth cookieAuth = (CookieAuth) parameter.getSourceAnnotation();
             if (cookieAuth.realm().length() == 0) return null;
-            return new CookieAuthParamValueFactory(cookieAuth);
+            return new CookieAuthParamValueFactory(configs, cookieAuth);
         }
     }
 
     static final class CookieAuthParamValueFactory extends AbstractContainerRequestValueFactory<CookieSubject> {
 
+        private final CookieAuthRealmConfigs configs;
         private final CookieAuth cookieAuth;
 
-        CookieAuthParamValueFactory(CookieAuth cookieAuth) {
+        CookieAuthParamValueFactory(CookieAuthRealmConfigs configs, CookieAuth cookieAuth) {
+            this.configs = configs;
             this.cookieAuth = cookieAuth;
         }
 
         @Override
         public CookieSubject provide() {
+            ContainerRequest request = getContainerRequest();
+            CookieAuthRealmConfig config = getConfig(cookieAuth.realm());
 
-
+            CookieSubject cookieSubject = new CookieSubject();
 
             // Return the field value for the field specified by the sourceName property.
-            final ContainerRequest request = getContainerRequest();
+
             final FormDataMultiPart formDataMultiPart = getEntity(request);
 
             final List<FormDataBodyPart> formDataBodyParts = formDataMultiPart.getFields(parameter.getSourceName());
@@ -121,10 +132,10 @@ public class CookieAuthJerseyModule {
             final MessageBodyWorkers messageBodyWorkers = request.getWorkers();
 
             MessageBodyReader reader = messageBodyWorkers.getMessageBodyReader(
-                    parameter.getRawType(),
-                    parameter.getType(),
-                    parameter.getAnnotations(),
-                    mediaType);
+                parameter.getRawType(),
+                parameter.getType(),
+                parameter.getAnnotations(),
+                mediaType);
 
             if (reader != null && !isPrimitiveType(parameter.getRawType())) {
                 final InputStream in;
@@ -143,12 +154,12 @@ public class CookieAuthJerseyModule {
                 try {
                     //noinspection unchecked
                     return reader.readFrom(
-                            parameter.getRawType(),
-                            parameter.getType(),
-                            parameter.getAnnotations(),
-                            mediaType,
-                            request.getHeaders(),
-                            in);
+                        parameter.getRawType(),
+                        parameter.getType(),
+                        parameter.getAnnotations(),
+                        mediaType,
+                        request.getHeaders(),
+                        in);
                 } catch (final IOException e) {
                     throw new FormDataParamException(e, parameter.getSourceName(), parameter.getDefaultValue());
                 }
@@ -160,18 +171,18 @@ public class CookieAuthJerseyModule {
                             mediaType = p.getMediaType();
 
                             reader = messageBodyWorkers.getMessageBodyReader(
-                                    String.class,
-                                    String.class,
-                                    parameter.getAnnotations(),
-                                    mediaType);
+                                String.class,
+                                String.class,
+                                parameter.getAnnotations(),
+                                mediaType);
 
                             @SuppressWarnings("unchecked") final String value = (String) reader.readFrom(
-                                    String.class,
-                                    String.class,
-                                    parameter.getAnnotations(),
-                                    mediaType,
-                                    request.getHeaders(),
-                                    ((BodyPartEntity) p.getEntity()).getInputStream());
+                                String.class,
+                                String.class,
+                                parameter.getAnnotations(),
+                                mediaType,
+                                request.getHeaders(),
+                                ((BodyPartEntity) p.getEntity()).getInputStream());
 
                             map.add(parameter.getSourceName(), value);
                         }
@@ -181,6 +192,10 @@ public class CookieAuthJerseyModule {
                     throw new FormDataParamException(ex, extractor.getName(), extractor.getDefaultValueString());
                 }
             }
+            return null;
+        }
+
+        private CookieAuthRealmConfig getConfig(String realm) {
             return null;
         }
 

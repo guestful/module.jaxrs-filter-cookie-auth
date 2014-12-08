@@ -16,26 +16,17 @@
 package com.guestful.jaxrs.security.cookie.auth;
 
 import javax.annotation.Priority;
+import javax.inject.Inject;
 import javax.ws.rs.Priorities;
 import javax.ws.rs.container.*;
-import javax.ws.rs.core.Context;
 import javax.ws.rs.core.FeatureContext;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * @author Mathieu Carbou (mathieu.carbou@gmail.com)
  */
 public class CookieAuthFeature implements DynamicFeature {
-
-    private final Map<String, CookieAuthRealmConfig> configs = new HashMap<>();
-
-    public CookieAuthFeature addConfig(String realmName, CookieAuthRealmConfig config) {
-        configs.put(realmName, config);
-        return this;
-    }
 
     @Override
     public void configure(ResourceInfo resourceInfo, FeatureContext context) {
@@ -43,16 +34,17 @@ public class CookieAuthFeature implements DynamicFeature {
         for (Annotation[] pAnnotations : allAnnotations) {
             for (Annotation annotation : pAnnotations) {
                 if (annotation.annotationType() == CookieAuth.class) {
-                    context.register(new Coo);
+                    context.register(CookieAuthFilter.class);
                 }
             }
         }
     }
 
     @Priority(Priorities.AUTHENTICATION)
-    public class CookieAuthFilter implements ContainerRequestFilter, ContainerResponseFilter {
+    public static class CookieAuthFilter implements ContainerRequestFilter, ContainerResponseFilter {
 
-        @Context ContainerRequestContext context;
+        @Inject
+        CookieAuthRealmConfigs configs;
 
         @Override
         public void filter(ContainerRequestContext requestContext) throws IOException {

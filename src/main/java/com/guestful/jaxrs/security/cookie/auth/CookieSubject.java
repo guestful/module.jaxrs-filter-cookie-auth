@@ -15,7 +15,6 @@
  */
 package com.guestful.jaxrs.security.cookie.auth;
 
-import javax.ws.rs.core.UriInfo;
 import java.security.Principal;
 
 /**
@@ -23,10 +22,8 @@ import java.security.Principal;
  */
 public class CookieSubject {
 
-    private final UriInfo uriInfo;
+    public CookieSubject() {
 
-    public CookieSubject(UriInfo uriInfo) {
-        this.uriInfo = uriInfo;
     }
 
     public void login(Principal principal) {
@@ -40,4 +37,5 @@ public class CookieSubject {
     public void logout() {
 
     }
+
 }

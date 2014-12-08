@@ -21,24 +21,21 @@ import org.glassfish.hk2.api.InjectionResolver;
 import org.glassfish.hk2.api.ServiceLocator;
 import org.glassfish.hk2.api.TypeLiteral;
 import org.glassfish.hk2.utilities.binding.AbstractBinder;
-import org.glassfish.jersey.internal.util.collection.MultivaluedStringMap;
-import org.glassfish.jersey.message.MessageBodyWorkers;
-import org.glassfish.jersey.message.MessageUtils;
 import org.glassfish.jersey.server.ContainerRequest;
-import org.glassfish.jersey.server.internal.inject.*;
+import org.glassfish.jersey.server.internal.inject.AbstractContainerRequestValueFactory;
+import org.glassfish.jersey.server.internal.inject.AbstractValueFactoryProvider;
+import org.glassfish.jersey.server.internal.inject.MultivaluedParameterExtractorProvider;
+import org.glassfish.jersey.server.internal.inject.ParamInjectionResolver;
 import org.glassfish.jersey.server.model.Parameter;
 import org.glassfish.jersey.server.spi.internal.ValueFactoryProvider;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import javax.ws.rs.NotAuthorizedException;
 import javax.ws.rs.core.Configurable;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.MultivaluedMap;
-import javax.ws.rs.ext.MessageBodyReader;
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.List;
+import javax.ws.rs.core.Cookie;
+import java.math.BigInteger;
+import java.security.Principal;
 
 /**
  * @author Mathieu Carbou (mathieu.carbou@gmail.com)
@@ -116,88 +113,30 @@ public class CookieAuthJerseyModule {
         @Override
         public CookieSubject provide() {
             ContainerRequest request = getContainerRequest();
-            CookieAuthRealmConfig config = getConfig(cookieAuth.realm());
+            CookieAuthRealmConfig config = configs.getConfig(cookieAuth.realm());
+            Cookie cookie = request.getCookies().get(config.getCookieName());
+            Principal principal = null;
 
-            CookieSubject cookieSubject = new CookieSubject();
+            if(cookie == null && !cookieAuth.optional()) {
+                throw new NotAuthorizedException("Guest not authenticated", "BASICAUTH realm=\"" + request.getBaseUri() + "\"");
 
-            // Return the field value for the field specified by the sourceName property.
+            } else if(cookie != null) {
+                String encr = cookie.getValue();
 
-            final FormDataMultiPart formDataMultiPart = getEntity(request);
-
-            final List<FormDataBodyPart> formDataBodyParts = formDataMultiPart.getFields(parameter.getSourceName());
-            final FormDataBodyPart formDataBodyPart = (formDataBodyParts != null) ? formDataBodyParts.get(0) : null;
-
-            MediaType mediaType = (formDataBodyPart != null) ? formDataBodyPart.getMediaType() : MediaType.TEXT_PLAIN_TYPE;
-
-            final MessageBodyWorkers messageBodyWorkers = request.getWorkers();
-
-            MessageBodyReader reader = messageBodyWorkers.getMessageBodyReader(
-                parameter.getRawType(),
-                parameter.getType(),
-                parameter.getAnnotations(),
-                mediaType);
-
-            if (reader != null && !isPrimitiveType(parameter.getRawType())) {
-                final InputStream in;
-                if (formDataBodyPart == null) {
-                    if (parameter.getDefaultValue() != null) {
-                        // Convert default value to bytes.
-                        in = new ByteArrayInputStream(parameter.getDefaultValue().getBytes(MessageUtils.getCharset(mediaType)));
-                    } else {
-                        return null;
-                    }
-                } else {
-                    in = ((BodyPartEntity) formDataBodyPart.getEntity()).getInputStream();
-                }
-
-
-                try {
-                    //noinspection unchecked
-                    return reader.readFrom(
-                        parameter.getRawType(),
-                        parameter.getType(),
-                        parameter.getAnnotations(),
-                        mediaType,
-                        request.getHeaders(),
-                        in);
-                } catch (final IOException e) {
-                    throw new FormDataParamException(e, parameter.getSourceName(), parameter.getDefaultValue());
-                }
-            } else if (extractor != null) {
-                final MultivaluedMap<String, String> map = new MultivaluedStringMap();
-                try {
-                    if (formDataBodyPart != null) {
-                        for (final FormDataBodyPart p : formDataBodyParts) {
-                            mediaType = p.getMediaType();
-
-                            reader = messageBodyWorkers.getMessageBodyReader(
-                                String.class,
-                                String.class,
-                                parameter.getAnnotations(),
-                                mediaType);
-
-                            @SuppressWarnings("unchecked") final String value = (String) reader.readFrom(
-                                String.class,
-                                String.class,
-                                parameter.getAnnotations(),
-                                mediaType,
-                                request.getHeaders(),
-                                ((BodyPartEntity) p.getEntity()).getInputStream());
-
-                            map.add(parameter.getSourceName(), value);
-                        }
-                    }
-                    return extractor.extract(map);
-                } catch (final IOException | ExtractorException ex) {
-                    throw new FormDataParamException(ex, extractor.getName(), extractor.getDefaultValueString());
-                }
             }
-            return null;
-        }
 
-        private CookieAuthRealmConfig getConfig(String realm) {
-            return null;
+            CookieSubject cookieSubject = new CookieSubject(principal);
+
+            return cookieSubject;
         }
 
     }
+
+    public static void main(String[] args) {
+        String s = "Dk_0YMqYt8ZszESJoDl0ig";
+        BigInteger bi = new BigInteger(s.getBytes());
+        BigInteger key = new BigInteger();
+        bi.xor()
+    }
+
 }

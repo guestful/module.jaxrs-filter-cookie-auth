@@ -22,20 +22,30 @@ import java.security.Principal;
  */
 public class CookieSubject {
 
-    public CookieSubject() {
+    private Principal principal;
 
+    public CookieSubject(Principal principal) {
+
+        this.principal = principal;
     }
 
-    public void login(Principal principal) {
-
+    public boolean isAuthenticated() {
+        return principal != null;
     }
 
     public Principal getPrincipal() {
-        return null;
+        return principal;
     }
 
     public void logout() {
+        this.principal = null;
+        //TODO: remove cooki
+    }
 
+    public void login(Principal principal) {
+        if(principal == null) throw new NullPointerException();
+        this.principal = principal;
+        //TODO: set cookie + encryption
     }
 
 }

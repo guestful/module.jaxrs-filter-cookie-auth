@@ -23,6 +23,7 @@ package com.guestful.jaxrs.security.cookie.auth;
 public class CookieAuthRealmConfig {
 
     private int cookieMaxAge = 60;
+    private String realName;
     private String cookieName;
     private String cookiePath;
     private String cookieDomain;
@@ -33,6 +34,15 @@ public class CookieAuthRealmConfig {
 
     public CookieAuthRealmConfig setCookieMaxAge(int cookieMaxAge) {
         this.cookieMaxAge = cookieMaxAge;
+        return this;
+    }
+
+    public String getRealName() {
+        return realName;
+    }
+
+    public CookieAuthRealmConfig setRealName(String realName) {
+        this.realName = realName;
         return this;
     }
 

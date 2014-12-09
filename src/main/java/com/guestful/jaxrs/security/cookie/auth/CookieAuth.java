@@ -20,7 +20,7 @@ import java.lang.annotation.*;
 /**
  * @author Mathieu Carbou (mathieu.carbou@gmail.com)
  */
-@Target({ElementType.PARAMETER, ElementType.METHOD})
+@Target({ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
 public @interface CookieAuth {

@@ -23,14 +23,22 @@ import java.security.Principal;
 public class CookieSubject {
 
     private Principal principal;
+    private boolean authenticated = false;
 
     public CookieSubject(Principal principal) {
-
         this.principal = principal;
     }
 
+    public boolean isAnonymous() {
+        return principal == null;
+    }
+
+    public boolean isRemembered() {
+        return principal != null && !authenticated;
+    }
+
     public boolean isAuthenticated() {
-        return principal != null;
+        return principal != null && authenticated;
     }
 
     public Principal getPrincipal() {
@@ -39,13 +47,13 @@ public class CookieSubject {
 
     public void logout() {
         this.principal = null;
-        //TODO: remove cooki
+        this.authenticated = false;
     }
 
     public void login(Principal principal) {
-        if(principal == null) throw new NullPointerException();
+        if (principal == null) throw new NullPointerException();
         this.principal = principal;
-        //TODO: set cookie + encryption
+        this.authenticated = true;
     }
 
 }

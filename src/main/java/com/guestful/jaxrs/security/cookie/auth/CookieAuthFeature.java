@@ -15,6 +15,8 @@
  */
 package com.guestful.jaxrs.security.cookie.auth;
 
+import org.glassfish.hk2.utilities.binding.AbstractBinder;
+
 import javax.annotation.Priority;
 import javax.inject.Inject;
 import javax.ws.rs.NotAuthorizedException;
@@ -42,7 +44,7 @@ public class CookieAuthFeature implements DynamicFeature, Feature {
 
     @Override
     public boolean configure(FeatureContext context) {
-        //TODO: bind
+        context.register(new Binder());
         return true;
     }
 
@@ -55,6 +57,15 @@ public class CookieAuthFeature implements DynamicFeature, Feature {
         if (cookieAuth != null) {
             CookieAuthRealmConfig config = configs.getConfig(cookieAuth.realm());
             context.register(new CookieAuthFilter(config, cookieAuth));
+        }
+    }
+
+    public class Binder extends AbstractBinder {
+        @Override
+        protected void configure() {
+            bindFactory(CookieSubjectFactory.class)
+                .to(CookieSubject.class)
+                .proxy(false);
         }
     }
 
@@ -89,16 +100,16 @@ public class CookieAuthFeature implements DynamicFeature, Feature {
                 }
             }
             CookieSubject cookieSubject = new CookieSubject(principal);
-            requestContext.setProperty(CookieSubject.class.getName() + "." + cookieAuth.realm(), cookieSubject);
+            requestContext.setProperty(CookieSubject.class.getName(), cookieSubject);
         }
 
         @Override
         public void filter(ContainerRequestContext requestContext, ContainerResponseContext responseContext) throws IOException {
-            CookieSubject cookieSubject = (CookieSubject) requestContext.getProperty(CookieSubject.class.getName() + "." + cookieAuth.realm());
+            CookieSubject cookieSubject = (CookieSubject) requestContext.getProperty(CookieSubject.class.getName());
 
             if (cookieSubject != null) {
 
-                requestContext.removeProperty(CookieSubject.class.getName() + "." + cookieAuth.realm());
+                requestContext.removeProperty(CookieSubject.class.getName());
 
                 if (!cookieSubject.isAnonymous()) {
                     responseContext.getHeaders().add(HttpHeaders.SET_COOKIE, new NewCookie(
@@ -143,7 +154,7 @@ public class CookieAuthFeature implements DynamicFeature, Feature {
         }
 
         boolean expired(int maxAgeSec) {
-            return time + maxAgeSec * 1000 <= System.currentTimeMillis();
+            return  maxAgeSec * 1000 <= System.currentTimeMillis() - time;
         }
 
         String encrypt(String encryptionKey) {

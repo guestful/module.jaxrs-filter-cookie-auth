@@ -15,16 +15,38 @@
  */
 package com.guestful.jaxrs.security.cookie.auth;
 
+import org.glassfish.hk2.api.Factory;
+
+import javax.inject.Inject;
 import javax.inject.Provider;
+import javax.inject.Singleton;
+import javax.ws.rs.container.ContainerRequestContext;
 
 /**
  * @author Mathieu Carbou (mathieu.carbou@gmail.com)
  */
-public class CookieSubjectFactory implements Provider<CookieSubject> {
+@Singleton
+public class CookieSubjectFactory implements Factory<CookieSubject> {
+
+    private final Provider<ContainerRequestContext> requestContext;
+
+    @Inject
+    public CookieSubjectFactory(Provider<ContainerRequestContext> requestContext) {
+        this.requestContext = requestContext;
+    }
 
     @Override
-    public CookieSubject get() {
-        return null;
+    public CookieSubject provide() {
+        CookieSubject cookieSubject = (CookieSubject) requestContext.get().getProperty(CookieSubject.class.getName());
+        if (cookieSubject == null) {
+            throw new IllegalStateException("No CookieSubject bound to current request");
+        }
+        return cookieSubject;
+    }
+
+    @Override
+    public void dispose(CookieSubject cookieSubject) {
+
     }
 
 }

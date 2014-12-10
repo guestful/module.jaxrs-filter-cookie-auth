@@ -27,6 +27,16 @@ public class CookieAuthRealmConfig {
     private String cookieName;
     private String cookiePath;
     private String cookieDomain;
+    private String encryptionKey;
+
+    public String getEncryptionKey() {
+        return encryptionKey;
+    }
+
+    public CookieAuthRealmConfig setEncryptionKey(String encryptionKey) {
+        this.encryptionKey = encryptionKey;
+        return this;
+    }
 
     public int getCookieMaxAge() {
         return cookieMaxAge;

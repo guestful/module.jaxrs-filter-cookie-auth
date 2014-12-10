@@ -17,15 +17,14 @@ package com.guestful.jaxrs.security.cookie.auth;
 
 import javax.annotation.Priority;
 import javax.inject.Inject;
-import javax.json.Json;
-import javax.json.JsonObject;
 import javax.ws.rs.NotAuthorizedException;
 import javax.ws.rs.Priorities;
 import javax.ws.rs.container.*;
 import javax.ws.rs.core.*;
 import java.io.IOException;
-import java.io.StringReader;
+import java.nio.ByteBuffer;
 import java.security.Principal;
+import java.util.Base64;
 import java.util.Date;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -77,15 +76,16 @@ public class CookieAuthFeature implements DynamicFeature, Feature {
             if (cookie == null && !cookieAuth.optional()) {
                 throw new NotAuthorizedException("Missing authentication token", "GBASICAUTH realm=\"" + requestContext.getUriInfo().getBaseUri() + "\"");
             } else if (cookie != null) {
-                JsonObject object = decrypt(cookie.getValue());
-                // expiration check
-                long time = object.getJsonNumber("t").longValue();
-                if (time + config.getCookieMaxAge() * 1000 <= System.currentTimeMillis()) {
-                    throw new NotAuthorizedException("Expired authentication token", "GBASICAUTH realm=\"" + requestContext.getUriInfo().getBaseUri() + "\"");
-                }
-                principal = new NamedPrincipal(object.getString("p"));
-                if(!cookieAuthorizer.isAuthorized(principal, cookieAuth)) {
-                    throw new NotAuthorizedException("Not authorized", "GBASICAUTH realm=\"" + requestContext.getUriInfo().getBaseUri() + "\"");
+                StoredPrincipal storedPrincipal = StoredPrincipal.decrypt(config.getEncryptionKey(), cookie.getValue());
+                if (storedPrincipal != null) {
+                    // expiration check;
+                    if (storedPrincipal.expired(config.getCookieMaxAge())) {
+                        throw new NotAuthorizedException("Expired authentication token", "GBASICAUTH realm=\"" + requestContext.getUriInfo().getBaseUri() + "\"");
+                    }
+                    principal = storedPrincipal.principal;
+                    if (!cookieAuthorizer.isAuthorized(principal, cookieAuth)) {
+                        throw new NotAuthorizedException("Not authorized", "GBASICAUTH realm=\"" + requestContext.getUriInfo().getBaseUri() + "\"");
+                    }
                 }
             }
             CookieSubject cookieSubject = new CookieSubject(principal);
@@ -103,7 +103,7 @@ public class CookieAuthFeature implements DynamicFeature, Feature {
                 if (!cookieSubject.isAnonymous()) {
                     responseContext.getHeaders().add(HttpHeaders.SET_COOKIE, new NewCookie(
                             config.getCookieName(),
-                            encrypt(cookieSubject.getPrincipal()),
+                            StoredPrincipal.store(cookieSubject.getPrincipal()).encrypt(config.getEncryptionKey()),
                             config.getCookiePath(),
                             config.getCookieDomain(),
                             null,
@@ -130,29 +130,73 @@ public class CookieAuthFeature implements DynamicFeature, Feature {
             }
         }
 
-        private String encrypt(Principal principal) {
-            String val = Json.createObjectBuilder()
-                .add("u", principal.getName())
-                .add("t", System.currentTimeMillis())
-                .build()
-                .toString();
+    }
 
-            return ;
+    static class StoredPrincipal {
+
+        final Principal principal;
+        final long time;
+
+        private StoredPrincipal(Principal principal, long time) {
+            this.principal = principal;
+            this.time = time;
         }
 
-        private JsonObject decrypt(String cookieValue) {
+        boolean expired(int maxAgeSec) {
+            return time + maxAgeSec * 1000 <= System.currentTimeMillis();
+        }
+
+        String encrypt(String encryptionKey) {
             try {
-                String val = ;
-                JsonObject object = Json.createReader(new StringReader(val)).readObject();
-                object.getInt("t");
-                object.getString("u");
-                return object;
+                ByteBuffer bb = ByteBuffer.allocate(24);
+                bb.putLong(time);
+                bb.put(Base64.getUrlDecoder().decode(principal.getName()));
+                XOR.newInstance(encryptionKey).xor(bb.array());
+                return Base64.getUrlEncoder().encodeToString(bb.array()).replace("=", "");
+            } catch (Exception e) {
+                throw new IllegalArgumentException("Unable to encrypt principal " + principal, e);
+            }
+        }
+
+        static StoredPrincipal store(Principal principal) {
+            return new StoredPrincipal(principal, System.currentTimeMillis());
+        }
+
+        static StoredPrincipal decrypt(String encryptionKey, String cookieValue) {
+            try {
+                ByteBuffer bb = ByteBuffer.wrap(Base64.getUrlDecoder().decode(cookieValue));
+                if (bb.array().length != 24) {
+                    throw new IllegalStateException("bad length: " + bb.array().length);
+                }
+                XOR.newInstance(encryptionKey).xor(bb.array());
+                long time = bb.getLong();
+                byte[] principal = new byte[16];
+                bb.get(principal);
+                String id = Base64.getUrlEncoder().encodeToString(principal).replace("=", "");
+                return new StoredPrincipal(new NamedPrincipal(id), time);
             } catch (Exception e) {
                 LOGGER.log(Level.WARNING, "Unable to decrypt cookie value: " + cookieValue, e);
                 return null;
             }
         }
 
+    }
+
+    public static void main(String[] args) {
+        String key = "6E3055526D4355315F4B6B6B79674C6E392D31776C517095";
+
+        String id = "n0URmCU1_KkkygLn9-1wlQ";
+
+        StoredPrincipal storedPrincipal = StoredPrincipal.store(new NamedPrincipal(id));
+        System.out.println(storedPrincipal.principal);
+        System.out.println(storedPrincipal.time);
+
+        String encr = storedPrincipal.encrypt(key);
+        System.out.println(encr);
+
+        StoredPrincipal decr = StoredPrincipal.decrypt(key, encr);
+        System.out.println(decr.principal);
+        System.out.println(decr.time);
     }
 
 }

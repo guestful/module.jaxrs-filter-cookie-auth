@@ -7,8 +7,6 @@ import javax.inject.Provider;
  */
 public class CookieSubjectFactory implements Provider<CookieSubject> {
 
-
-
     @Override
     public CookieSubject get() {
         return null;

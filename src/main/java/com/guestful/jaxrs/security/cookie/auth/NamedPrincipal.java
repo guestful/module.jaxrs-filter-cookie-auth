@@ -25,6 +25,7 @@ public class NamedPrincipal implements Principal {
     private final String name;
 
     public NamedPrincipal(String name) {
+        if(name == null) throw new NullPointerException();
         this.name = name;
     }
 
@@ -43,11 +44,11 @@ public class NamedPrincipal implements Principal {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         NamedPrincipal that = (NamedPrincipal) o;
-        return !(name != null ? !name.equals(that.name) : that.name != null);
+        return name.equals(that.name);
     }
 
     @Override
     public int hashCode() {
-        return name != null ? name.hashCode() : 0;
+        return name.hashCode();
     }
 }

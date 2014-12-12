@@ -91,12 +91,25 @@ public class CookieAuthFeature implements DynamicFeature, Feature {
                 if (storedPrincipal != null) {
                     // expiration check;
                     if (storedPrincipal.expired(config.getCookieMaxAge())) {
-                        throw new NotAuthorizedException("Expired authentication token", "GBASICAUTH realm=\"" + requestContext.getUriInfo().getBaseUri() + "\"");
+                        if (!cookieAuth.optional()) {
+                            throw new NotAuthorizedException("Expired authentication token", "GBASICAUTH realm=\"" + requestContext.getUriInfo().getBaseUri() + "\"");
+                        } else {
+                            // keep principal null
+                        }
+                    } else {
+                        // authz check
+                        if (!cookieAuthorizer.isAuthorized(storedPrincipal.principal, cookieAuth)) {
+                            if (!cookieAuth.optional()) {
+                                throw new NotAuthorizedException("Not authorized", "GBASICAUTH realm=\"" + requestContext.getUriInfo().getBaseUri() + "\"");
+                            } else {
+                                // keep principal null
+                            }
+                        } else {
+                            // expiration and authz checks passed
+                            principal = storedPrincipal.principal;
+                        }
                     }
-                    principal = storedPrincipal.principal;
-                    if (!cookieAuthorizer.isAuthorized(principal, cookieAuth)) {
-                        throw new NotAuthorizedException("Not authorized", "GBASICAUTH realm=\"" + requestContext.getUriInfo().getBaseUri() + "\"");
-                    }
+
                 }
             }
             CookieSubject cookieSubject = new CookieSubject(principal);
@@ -154,7 +167,7 @@ public class CookieAuthFeature implements DynamicFeature, Feature {
         }
 
         boolean expired(int maxAgeSec) {
-            return  maxAgeSec * 1000 <= System.currentTimeMillis() - time;
+            return maxAgeSec * 1000 <= System.currentTimeMillis() - time;
         }
 
         String encrypt(String encryptionKey) {

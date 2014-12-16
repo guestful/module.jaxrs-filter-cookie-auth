@@ -167,8 +167,8 @@ public class CookieAuthFeature implements DynamicFeature, Feature {
             this.time = time;
         }
 
-        boolean expired(int maxAgeSec) {
-            return time + maxAgeSec * 1000 >= System.currentTimeMillis();
+        boolean expired(long maxAgeSec) {
+            return time + maxAgeSec * 1000L <= System.currentTimeMillis();
         }
 
         String encrypt(String encryptionKey) {
@@ -228,10 +228,10 @@ public class CookieAuthFeature implements DynamicFeature, Feature {
 
         storedPrincipal = StoredPrincipal.decrypt(key, "bjBUGDhszKO7BosRMv62PZlsrhlvCns_");
         System.out.println(storedPrincipal.principal);
-        System.out.println(storedPrincipal.time);
-        System.out.println(System.currentTimeMillis());
-        System.out.println(System.currentTimeMillis() - storedPrincipal.time);
-        System.out.println(30 * 24 * 60 * 60);
+        System.out.println("cookie time = " + new Date(storedPrincipal.time));
+        System.out.println("now = " + new Date());
+        System.out.println("diff (sec) = " + (System.currentTimeMillis() - storedPrincipal.time) / 1000);
+        System.out.println("30 days in sec = " + (30 * 24 * 60 * 60));
         System.out.println(storedPrincipal.expired(30 * 24 * 60 * 60));
     }
 

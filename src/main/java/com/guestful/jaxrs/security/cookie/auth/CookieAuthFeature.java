@@ -89,20 +89,19 @@ public class CookieAuthFeature implements DynamicFeature, Feature {
             } else if (cookie != null) {
                 StoredPrincipal storedPrincipal = StoredPrincipal.decrypt(config.getEncryptionKey(), cookie.getValue());
                 if (storedPrincipal != null) {
+                    LOGGER.log(Level.FINEST, "Stored Principal: " + storedPrincipal.principal);
                     // expiration check;
                     if (storedPrincipal.expired(config.getCookieMaxAge())) {
+                        LOGGER.log(Level.FINEST, "Stored Principal expired: " + storedPrincipal.principal);
                         if (!cookieAuth.optional()) {
                             throw new NotAuthorizedException("Expired authentication token", "GBASICAUTH realm=\"" + requestContext.getUriInfo().getBaseUri() + "\"");
-                        } else {
-                            // keep principal null
                         }
                     } else {
                         // authz check
                         if (!cookieAuthorizer.isAuthorized(storedPrincipal.principal, cookieAuth)) {
+                            LOGGER.log(Level.FINEST, "Stored Principal not authroized: " + storedPrincipal.principal);
                             if (!cookieAuth.optional()) {
                                 throw new NotAuthorizedException("Not authorized", "GBASICAUTH realm=\"" + requestContext.getUriInfo().getBaseUri() + "\"");
-                            } else {
-                                // keep principal null
                             }
                         } else {
                             // expiration and authz checks passed

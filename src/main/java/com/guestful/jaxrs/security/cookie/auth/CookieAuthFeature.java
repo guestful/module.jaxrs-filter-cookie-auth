@@ -166,7 +166,7 @@ public class CookieAuthFeature implements DynamicFeature, Feature {
         }
 
         boolean expired(int maxAgeSec) {
-            return maxAgeSec * 1000 <= System.currentTimeMillis() - time;
+            return time + maxAgeSec * 1000 <= System.currentTimeMillis();
         }
 
         String encrypt(String encryptionKey) {

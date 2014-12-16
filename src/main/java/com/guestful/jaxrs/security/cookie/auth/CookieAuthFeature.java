@@ -23,9 +23,11 @@ import javax.ws.rs.NotAuthorizedException;
 import javax.ws.rs.Priorities;
 import javax.ws.rs.container.*;
 import javax.ws.rs.core.*;
+import javax.xml.bind.DatatypeConverter;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.security.Principal;
+import java.security.SecureRandom;
 import java.util.Base64;
 import java.util.Date;
 import java.util.logging.Level;
@@ -166,7 +168,7 @@ public class CookieAuthFeature implements DynamicFeature, Feature {
         }
 
         boolean expired(int maxAgeSec) {
-            return time + maxAgeSec * 1000 <= System.currentTimeMillis();
+            return time + maxAgeSec * 1000 >= System.currentTimeMillis();
         }
 
         String encrypt(String encryptionKey) {
@@ -206,7 +208,10 @@ public class CookieAuthFeature implements DynamicFeature, Feature {
     }
 
     public static void main(String[] args) {
-        String key = "6E3055526D4355315F4B6B6B79674C6E392D31776C517095";
+        byte[] bytes = new byte[24];
+        new SecureRandom().nextBytes(bytes);
+        String key = System.getProperty("key", DatatypeConverter.printHexBinary(bytes));
+        System.out.println(key);
 
         String id = "n0URmCU1_KkkygLn9-1wlQ";
 
@@ -220,6 +225,14 @@ public class CookieAuthFeature implements DynamicFeature, Feature {
         StoredPrincipal decr = StoredPrincipal.decrypt(key, encr);
         System.out.println(decr.principal);
         System.out.println(decr.time);
+
+        storedPrincipal = StoredPrincipal.decrypt(key, "bjBUGDhszKO7BosRMv62PZlsrhlvCns_");
+        System.out.println(storedPrincipal.principal);
+        System.out.println(storedPrincipal.time);
+        System.out.println(System.currentTimeMillis());
+        System.out.println(System.currentTimeMillis() - storedPrincipal.time);
+        System.out.println(30 * 24 * 60 * 60);
+        System.out.println(storedPrincipal.expired(30 * 24 * 60 * 60));
     }
 
 }
